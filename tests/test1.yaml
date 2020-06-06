@@ -132,6 +132,9 @@ uart:
   rx_pin: GPIO23
   baud_rate: 115200
   id: uart0
+  parity: NONE
+  data_bits: 8
+  stop_bits: 1
 
 ota:
   safe_mode: True
@@ -305,6 +308,7 @@ sensor:
     retain: False
     availability:
     state_topic: livingroom/custom_state_topic
+    measurement_time: 31
   - platform: bme280
     temperature:
       name: "Outside Temperature"
@@ -495,6 +499,11 @@ sensor:
     update_interval: 15s
     reference_temperature:
       name: "MAX31855 Internal Temperature"
+  - platform: max31856
+    name: "BBQ Temperature"
+    cs_pin: GPIO17
+    update_interval: 15s
+    mains_filter: 50Hz
   - platform: max31865
     name: "Water Tank Temperature"
     cs_pin: GPIO23
@@ -720,6 +729,13 @@ sensor:
   - platform: tmp117
     name: "TMP117 Temperature"
     update_interval: 5s
+  - platform: hm3301
+    pm_1_0:
+      name: "PM1.0"
+    pm_2_5:
+      name: "PM2.5"
+    pm_10_0:
+      name: "PM10.0"
 
 esp32_touch:
   setup_mode: False
@@ -860,6 +876,13 @@ binary_sensor:
       number: 7
       mode: INPUT_PULLUP
       inverted: False
+  - platform: gpio
+    name: "MCP23 binary sensor"
+    pin:
+      mcp23016: mcp23016_hub
+      number: 7
+      mode: INPUT
+      inverted: False
 
   - platform: remote_receiver
     name: "Raw Remote Receiver Test"
@@ -983,6 +1006,13 @@ output:
       number: 0
       mode: OUTPUT
       inverted: False
+  - platform: gpio
+    id: id25
+    pin:
+      mcp23016: mcp23016_hub
+      number: 0
+      mode: OUTPUT
+      inverted: False
   - platform: my9231
     id: my_0
     channel: 0
@@ -1005,6 +1035,13 @@ output:
     id: id24
     pin: GPIO26
     period: 15s
+  - platform: ac_dimmer
+    id: dimmer1
+    gate_pin: GPIO5
+    zero_cross_pin: GPIO26
+  - platform: esp32_dac
+    pin: GPIO25
+    id: dac_output
 
 light:
   - platform: binary
@@ -1019,6 +1056,14 @@ light:
               duration: 250ms
             - state: False
               duration: 250ms
+    on_turn_on:
+      - switch.template.publish:
+          id: livingroom_lights
+          state: yes
+    on_turn_off:
+      - switch.template.publish:
+          id: livingroom_lights
+          state: yes
   - platform: monochromatic
     name: "Kitchen Lights"
     id: kitchen
@@ -1067,6 +1112,7 @@ light:
     warm_white: pca_6
     cold_white_color_temperature: 153 mireds
     warm_white_color_temperature: 500 mireds
+    constant_brightness: true
   - platform: fastled_clockless
     id: addr1
     chipset: WS2811
@@ -1121,8 +1167,9 @@ light:
     - addressable_lambda:
           name: "Test For Custom Lambda Effect"
           lambda: |-
-            it[0] = current_color;
-
+            if (initial_run) {
+              it[0] = current_color;
+            }
     - automation:
         name: Custom Effect
         sequence:
@@ -1202,6 +1249,8 @@ climate:
     name: Yashima Climate
   - platform: mitsubishi
     name: Mitsubishi
+  - platform: whirlpool
+    name: Whirlpool Climate
 
 switch:
   - platform: gpio
@@ -1319,6 +1368,12 @@ switch:
         level: 50%
     - output.set_level:
         id: gpio_19
+        level: !lambda 'return 0.5;'
+    - output.set_level:
+        id: dac_output
+        level: 50%
+    - output.set_level:
+        id: dac_output
         level: !lambda 'return 0.5;'
     turn_off_action:
     - switch.turn_on: living_room_lights_off
@@ -1440,10 +1495,26 @@ display:
   intensity: 3
   lambda: |-
       it.print("1234");
+- platform: tm1637
+  clk_pin:
+    mcp23017: mcp23017_hub
+    number: 1
+  dio_pin:
+    mcp23017: mcp23017_hub
+    number: 2
+  intensity: 3
+  lambda: |-
+      it.print("1234");
 - platform: nextion
   lambda: |-
     it.set_component_value("gauge", 50);
     it.set_component_text("textview", "Hello World!");
+- platform: pcd8544
+  cs_pin: GPIO23
+  dc_pin: GPIO23
+  reset_pin: GPIO23
+  lambda: |-
+    it.rectangle(0, 0, it.get_width(), it.get_height());
 - platform: ssd1306_i2c
   model: "SSD1306_128X64"
   reset_pin: GPIO23
@@ -1551,6 +1622,10 @@ mcp23008:
   - id: 'mcp23008_hub'
     address: 0x22
 
+mcp23016:
+  - id: 'mcp23016_hub'
+    address: 0x23
+
 stepper:
 - platform: a4988
   id: my_stepper
@@ -1606,3 +1681,5 @@ text_sensor:
     name: "SSID"
   bssid:
     name: "BSSID"
+  mac_address:
+    name: "Mac Address"
