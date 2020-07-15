@@ -33,6 +33,7 @@ REQUIRES = [
     'pytz==2020.1',
     'pyserial==3.4',
     'ifaddr==0.1.6',
+    'deepmerge==0.1.0'
 ]
 
 # If you have problems importing platformio and esptool as modules you can set
@@ -40,7 +41,7 @@ REQUIRES = [
 # This means they have to be in your $PATH.
 if os.environ.get('ESPHOME_USE_SUBPROCESS') is None:
     REQUIRES.extend([
-        'platformio==4.3.3',
+        'platformio==4.3.4',
         'esptool==2.8',
     ])
 
