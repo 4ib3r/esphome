@@ -22,7 +22,6 @@ class KeypadSensor : public sensor::Sensor {
 
 class KeypadChannel : public binary_sensor::BinarySensor {
   friend class KeypadComponent;
-
  public:
   void set_key(String key) { key_ = key.c_str()[0]; }
   char get_key() { return key_; }
@@ -39,6 +38,8 @@ class KeypadChannel : public binary_sensor::BinarySensor {
 };
 
 class KeypadComponent : public Component {
+ private:
+   bool enabled_ = true;
  public:
   void register_channel(KeypadChannel *channel) { this->channels_.push_back(channel); }
   void set_sensor(KeypadSensor *sensor) {
@@ -53,6 +54,9 @@ class KeypadComponent : public Component {
   float get_setup_priority() const override { return setup_priority::DATA; }
   void loop() override;
   static void keypadEvent(KeypadEvent key);
+  void enable() { enabled_ = true; };
+  void disable() { enabled_ = false; };
+  bool isEnabled() { return enabled_; };
  protected:
   std::vector<KeypadChannel *> channels_{};
   KeypadSensor *sensor_ = nullptr;
