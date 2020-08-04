@@ -9,52 +9,8 @@ on:
     branches: [beta, master]
 
   pull_request:
-    # Only trigger on certain events (not when comments are added)
-    types: [opened, reopened, synchronize]
-    # Only run when PR is against dev branch (all PRs should be against dev branch)
-    # Helps prevent accidentally merging PRs against master branch
-    branches: [dev]
 
 jobs:
-  # A fast overview job that checks only changed files
-  overview:
-    runs-on: ubuntu-latest
-    container: esphome/esphome-lint:latest
-    steps:
-      # Also fetch history and dev branch so that we can check which files changed
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Fetch dev branch
-        run: git fetch origin dev
-
-      # Cache the .pio directory with (primarily) library dependencies
-      - name: Cache .pio lib_deps
-        uses: actions/cache@v1
-        with:
-          path: .pio
-          key: lint-cpp-pio-${{ hashFiles('platformio.ini') }}
-          restore-keys: |
-            lint-cpp-pio-
-      - name: Set up python environment
-        run: script/setup
-      # Set up the pio project so that the cpp checks know how files are compiled
-      # (build flags, libraries etc)
-      - name: Set up platformio environment
-        run: pio init --ide atom
-
-      - name: Register problem matchers
-        run: |
-          echo "::add-matcher::.github/workflows/matchers/ci-custom.json"
-          echo "::add-matcher::.github/workflows/matchers/clang-tidy.json"
-          echo "::add-matcher::.github/workflows/matchers/gcc.json"
-          echo "::add-matcher::.github/workflows/matchers/lint-python.json"
-          echo "::add-matcher::.github/workflows/matchers/python.json"
-      - name: Run a quick lint over all changed files
-        run: script/quicklint
-      - name: Suggest changes
-        run: script/ci-suggest-changes
-
   lint-clang-format:
     runs-on: ubuntu-latest
     # cpp lint job runs with esphome-lint docker image so that clang-format-*
@@ -145,6 +101,8 @@ jobs:
         run: script/ci-custom.py
       - name: Lint Python
         run: script/lint-python
+      - name: Lint CODEOWNERS
+        run: script/build_codeowners.py --check
 
   test:
     runs-on: ubuntu-latest
@@ -176,15 +134,6 @@ jobs:
           key: test-home-platformio-${{ matrix.test }}-${{ hashFiles('esphome/core_config.py') }}
           restore-keys: |
             test-home-platformio-${{ matrix.test }}-
-      # Cache the intermediary build files
-      - name: Cache Test Build
-        uses: actions/cache@v1
-        with:
-          path: tests/build/${{ matrix.test }}
-          key: test-pio-${{ matrix.test }}-${{ hashFiles('esphome/core_config.py') }}-${{ hashFiles('esphome/**') }}
-          restore-keys: |
-            test-pio-${{ matrix.test }}-${{ hashFiles('esphome/core_config.py') }}-
-            test-pio-${{ matrix.test }}-
       - name: Set up environment
         run: script/setup
 
@@ -194,3 +143,34 @@ jobs:
           echo "::add-matcher::.github/workflows/matchers/gcc.json"
           echo "::add-matcher::.github/workflows/matchers/python.json"
       - run: esphome tests/${{ matrix.test }}.yaml compile
+
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: Cache pip modules
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: esphome-pip-3.7-${{ hashFiles('setup.py') }}
+          restore-keys: |
+            esphome-pip-3.7-
+      - name: Set up environment
+        run: script/setup
+      - name: Install Github Actions annotator
+        run: pip install pytest-github-actions-annotate-failures
+
+      - name: Register problem matchers
+        run: |
+          echo "::add-matcher::.github/workflows/matchers/python.json"
+      - name: Run pytest
+        run: |
+          pytest \
+            -qq \
+            --durations=10 \
+            -o console_output_style=count \
+            tests

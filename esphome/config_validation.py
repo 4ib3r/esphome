@@ -40,7 +40,7 @@ ALLOW_EXTRA = vol.ALLOW_EXTRA
 UNDEFINED = vol.UNDEFINED
 RequiredFieldInvalid = vol.RequiredFieldInvalid
 
-ALLOWED_NAME_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789_'
+ALLOWED_NAME_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789_-'
 
 RESERVED_IDS = [
     # C++ keywords http://en.cppreference.com/w/cpp/keyword
@@ -186,6 +186,7 @@ def ensure_list(*validators):
     None and empty dictionaries are converted to empty lists.
     """
     user = All(*validators)
+    list_schema = Schema([user])
 
     def validator(value):
         check_not_templatable(value)
@@ -193,19 +194,7 @@ def ensure_list(*validators):
             return []
         if not isinstance(value, list):
             return [user(value)]
-        ret = []
-        errs = []
-        for i, val in enumerate(value):
-            try:
-                with prepend_path([i]):
-                    ret.append(user(val))
-            except MultipleInvalid as err:
-                errs.extend(err.errors)
-            except Invalid as err:
-                errs.append(err)
-        if errs:
-            raise MultipleInvalid(errs)
-        return ret
+        return list_schema(value)
 
     return validator
 
@@ -811,7 +800,9 @@ def mqtt_qos(value):
 
 def requires_component(comp):
     """Validate that this option can only be specified when the component `comp` is loaded."""
+    # pylint: disable=unsupported-membership-test
     def validator(value):
+        # pylint: disable=unsupported-membership-test
         if comp not in CORE.raw_config:
             raise Invalid(f"This option requires component {comp}")
         return value
@@ -1125,7 +1116,7 @@ def typed_schema(schemas, **kwargs):
     def validator(value):
         if not isinstance(value, dict):
             raise Invalid("Value must be dict")
-        if CONF_TYPE not in value:
+        if key not in value:
             raise Invalid("type not specified!")
         value = value.copy()
         key_v = key_validator(value.pop(key))
@@ -1175,6 +1166,7 @@ class OnlyWith(Optional):
 
     @property
     def default(self):
+        # pylint: disable=unsupported-membership-test
         if self._component not in CORE.raw_config:
             return vol.UNDEFINED
         return self._default
