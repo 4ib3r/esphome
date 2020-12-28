@@ -2,6 +2,7 @@ from typing import Union, List
 
 import collections
 import io
+import glob
 import logging
 import os
 import re
@@ -247,7 +248,8 @@ class OrderedDict(collections.OrderedDict):
 
 
 def list_yaml_files(folder):
-    files = filter_yaml_files([os.path.join(folder, p) for p in os.listdir(folder)])
+    files = [f for f in glob.glob(os.path.join(folder, "**/*.yaml"), recursive=True)]
+    files = filter_yaml_files(files)
     files.sort()
     return files
 

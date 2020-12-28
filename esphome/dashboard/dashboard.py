@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import threading
+from itertools import groupby
 
 import tornado
 import tornado.concurrent
@@ -143,6 +144,7 @@ def is_authenticated(request_handler):
 
 def bind_config(func):
     def decorator(self, *args, **kwargs):
+        print(self)
         configuration = self.get_argument('configuration')
         if not is_allowed(configuration):
             self.set_status(500)
@@ -370,18 +372,19 @@ class DownloadBinaryRequestHandler(BaseHandler):
 
 def _list_dashboard_entries():
     files = settings.list_yaml_files()
-    return [DashboardEntry(file) for file in files]
+    return sorted([DashboardEntry(file) for file in files], key=lambda x: x.group)
 
 
 class DashboardEntry:
     def __init__(self, path):
         self.path = path
+        self._filename = self.path[len(settings.config_dir)+1:]
         self._storage = None
         self._loaded_storage = False
 
     @property
     def filename(self):
-        return os.path.basename(self.path)
+        return self._filename
 
     @property
     def storage(self):  # type: () -> Optional[StorageJSON]
@@ -399,8 +402,14 @@ class DashboardEntry:
     @property
     def name(self):
         if self.storage is None:
-            return self.filename[:-len('.yaml')]
+            return os.path.basename(self.filename)[:-len('.yaml')]
         return self.storage.name
+
+    @property
+    def group(self):
+        if "/" not in self.filename:
+            return "Default"
+        return os.path.dirname(self.filename)
 
     @property
     def comment(self):
@@ -449,7 +458,8 @@ class MainRequestHandler(BaseHandler):
         begin = bool(self.get_argument('begin', False))
         entries = _list_dashboard_entries()
 
-        self.render("templates/index.html", entries=entries, begin=begin,
+        groups = groupby(entries, lambda x: x.group)
+        self.render("templates/index.html", entries=groups, begin=begin, itemsCnt=len(entries),
                     **template_args(), login_enabled=settings.using_auth)
 
 
@@ -533,14 +543,16 @@ class PingRequestHandler(BaseHandler):
 
 
 def is_allowed(configuration):
-    return os.path.sep not in configuration
+    return not configuration.startswith(os.path.sep) and ".." not in configuration
 
 
 class EditRequestHandler(BaseHandler):
     @authenticated
     @bind_config
     def get(self, configuration=None):
+        print(configuration)
         filename = settings.rel_path(configuration)
+        print(filename)
         content = ''
         if os.path.isfile(filename):
             # pylint: disable=no-value-for-parameter

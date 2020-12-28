@@ -33,16 +33,18 @@ const fixNavbarHeight = () => {
  *  Dashboard Dynamic Grid
  */
 const nodeGrid = () => {
+  const groupsNodeGrid = document.querySelectorAll("#nodes .grid");
   const nodeCount = document.querySelectorAll("#nodes .card").length;
-  const nodeGrid = document.querySelector("#nodes #grid");
-
-  if (nodeCount <= 3) {
-    nodeGrid.classList.add("grid-1-col");
-  } else if (nodeCount <= 6) {
-    nodeGrid.classList.add("grid-2-col");
-  } else {
-    nodeGrid.classList.add("grid-3-col");
-  }
+  groupsNodeGrid.forEach(function (nodeGrid) {
+      const inGroupCount = nodeGrid.querySelectorAll(".card").length;
+      if (nodeCount <= 3 || inGroupCount < 2) {
+        nodeGrid.classList.add("grid-1-col");
+      } else if (nodeCount <= 6 || inGroupCount < 3) {
+        nodeGrid.classList.add("grid-2-col");
+      } else {
+        nodeGrid.classList.add("grid-3-col");
+      }
+  });
 }
 
 /**
