@@ -6,6 +6,8 @@ $(document).ready(function () {
   nodeGrid();
   startAceWebsocket();
   fixNavbarHeight();
+
+  $('.collapsible').collapsible({accordion: false});
 });
 
 // WebSocket URL Helper
@@ -942,6 +944,24 @@ document.querySelectorAll("[data-action='save']").forEach((btn) => {
   });
 });
 
+const moveModalElement = document.getElementById("js-move-modal");
+const moveModal = M.Modal.init(moveModalElement, {
+      onOpenStart: function () {
+      },
+      onCloseStart: function () {
+      },
+      dismissible: true
+    })
+
+// Delete Node
+document.querySelectorAll("[data-action='move']").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    const filename = e.target.getAttribute("data-filename");
+    const groupname = e.target.getAttribute("data-groupname");
+    document.getElementById("move_group_name")
+    moveModal.open();
+  });
+});
 // Delete Node
 document.querySelectorAll("[data-action='delete']").forEach((btn) => {
   btn.addEventListener("click", (e) => {

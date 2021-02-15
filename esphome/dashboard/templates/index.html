@@ -60,66 +60,71 @@
   </div>
 
   <main>
-    <div id="nodes" class="container">
+    <ul id="nodes" class="container collapsible expandable">
 
       {% for g, group in entries %}
-      <div>{{g}}</div>
-      <div id="grid_{{g}}" class="grid">
+      <li>
+      <div class="collapsible-header">{{g}}</div>
+        <div class="collapsible-body">
+        <div id="grid_{{g}}" class="grid">
 
-        {% for i, entry in enumerate(group) %}
-        <div class="card status-unknown" data-node-name="{{ entry.name }}" data-filename="{{ entry.filename }}">
-          <div class="card-content black-text">
-            <span class="card-title">
-                <span class="node-name">{{ escape(entry.name) }}</span>
+          {% for i, entry in enumerate(group) %}
+          <div class="card status-unknown" data-node-name="{{ entry.name }}" data-filename="{{ entry.filename }}">
+            <div class="card-content black-text">
+              <span class="card-title">
+                  <span class="node-name">{{ escape(entry.name) }}</span>
 
-              <i class="material-icons right dropdown-trigger" data-target="dropdown-{{ i }}">more_vert</i>
+                <i class="material-icons right dropdown-trigger" data-target="dropdown-{{g}}-{{ i }}">more_vert</i>
 
-              {% if 'web_server' in entry.loaded_integrations %}
-              <a href="http://{{ escape(entry.address) }}" target="_blank"><i
-                  class="material-icons node-webserver right tooltipped" data-position="left"
-                  data-tooltip="Open Node Web Server Interface">launch</i></a>
+                {% if 'web_server' in entry.loaded_integrations %}
+                <a href="http://{{ escape(entry.address) }}" target="_blank"><i
+                    class="material-icons node-webserver right tooltipped" data-position="left"
+                    data-tooltip="Open Node Web Server Interface">launch</i></a>
+                {% end %}
+
+                {% if entry.update_available %}
+                <i class="material-icons node-update-avaliable right tooltipped" data-position="left"
+                  data-tooltip="Update Available: {{ entry.update_old }} &#x27A1;&#xFE0F;{{ entry.update_new }}">system_update</i>
+                {% end %}
+              </span>
+
+              <div class="node-config-path">
+                Filename:
+                <code class="inlinecode tooltipped" data-position="bottom"
+                  data-tooltip="Full Path: <code class=&quot;inlinecode&quot;>{{ escape(entry.path) }}</code>">
+                  {{ escape(entry.filename) }}
+                </code>
+              </div>
+
+              {% if entry.comment %}
+              <div class="node-card-comment">
+                {{ escape(entry.comment) }}
+              </div>
               {% end %}
 
-              {% if entry.update_available %}
-              <i class="material-icons node-update-avaliable right tooltipped" data-position="left"
-                data-tooltip="Update Available: {{ entry.update_old }} &#x27A1;&#xFE0F;{{ entry.update_new }}">system_update</i>
-              {% end %}
-            </span>
-
-            <div class="node-config-path">
-              Filename:
-              <code class="inlinecode tooltipped" data-position="bottom"
-                data-tooltip="Full Path: <code class=&quot;inlinecode&quot;>{{ escape(entry.path) }}</code>">
-                {{ escape(entry.filename) }}
-              </code>
             </div>
-
-            {% if entry.comment %}
-            <div class="node-card-comment">
-              {{ escape(entry.comment) }}
+            <div class="card-action">
+              <a data-action="edit" data-filename="{{ url_escape(entry.filename) }}">Edit</a>
+              <a data-action="validate" data-filename="{{ url_escape(entry.filename) }}">Validate</a>
+              <a data-action="upload" data-filename="{{ url_escape(entry.filename) }}">Upload</a>
+              <a data-action="logs" data-filename="{{ url_escape(entry.filename) }}">Logs</a>
             </div>
-            {% end %}
-
+            <ul id="dropdown-{{g}}-{{ i }}" class="select-action dropdown-content card-dropdown-action node-dropdown">
+              <li><a data-action="clean-mqtt" data-filename="{{ entry.filename }}">Clean MQTT</a></li>
+              <li><a data-action="clean" data-filename="{{ entry.filename }}">Clean Build Files</a></li>
+              <li><a data-action="compile" data-filename="{{ entry.filename }}">Compile</a></li>
+              <li class="divider"></li>
+              <li><a data-action="delete" data-filename="{{ entry.filename }}">Delete</a></li>
+              <li><a data-action="move" data-filename="{{ entry.filename }}">Move</a></li>
+            </ul>
           </div>
-          <div class="card-action">
-            <a data-action="edit" data-filename="{{ url_escape(entry.filename) }}">Edit</a>
-            <a data-action="validate" data-filename="{{ url_escape(entry.filename) }}">Validate</a>
-            <a data-action="upload" data-filename="{{ url_escape(entry.filename) }}">Upload</a>
-            <a data-action="logs" data-filename="{{ url_escape(entry.filename) }}">Logs</a>
-          </div>
-          <ul id="dropdown-{{ i }}" class="select-action dropdown-content card-dropdown-action node-dropdown">
-            <li><a data-action="clean-mqtt" data-filename="{{ entry.filename }}">Clean MQTT</a></li>
-            <li><a data-action="clean" data-filename="{{ entry.filename }}">Clean Build Files</a></li>
-            <li><a data-action="compile" data-filename="{{ entry.filename }}">Compile</a></li>
-            <li class="divider"></li>
-            <li><a data-action="delete" data-filename="{{ entry.filename }}">Delete</a></li>
-          </ul>
-        </div>
         {% end %}
       </div>
+      </div>
+      </li>
       {% end %}
 
-    </div>
+    </ul>
 
     {% if itemsCnt == 0 %}
     <div class="center">
@@ -158,35 +163,6 @@
         </div>
 
         <div id="js-editor-area" class="editor"></div>
-      </div>
-      <div class="modal-footer">
-        <a class="waves-effect waves-green btn-flat" data-action="save">Save</a>
-        <a class="modal-close waves-effect waves-green btn-flat" data-action="upload">Upload</a>
-        <a class="modal-close waves-effect waves-green btn-flat" data-action="close">Close</a>
-      </div>
-    </div>
-    <!-- Config Editor Modal -->
-    <div id="js-visual-editor-modal" class="modal modal-fixed-footer no-autoinit">
-      <div class="modal-content">
-        <h4>Editing: <code id="js-node-filename" class="inlinecode"></code></h4>
-
-        <div id="js-visual-loading-indicator">
-          <div class="preloader-wrapper big active">
-            <div class="spinner-layer spinner-blue-only">
-              <div class="circle-clipper left">
-                <div class="circle"></div>
-              </div>
-              <div class="gap-patch">
-                <div class="circle"></div>
-              </div>
-              <div class="circle-clipper right">
-                <div class="circle"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div id="js-visual-editor-area" class="editor"></div>
       </div>
       <div class="modal-footer">
         <a class="waves-effect waves-green btn-flat" data-action="save">Save</a>
@@ -307,6 +283,19 @@
       </div>
     </div>
 
+    <!-- Move Modal -->
+    <div id="js-move-modal" class="modal modal-mini no-autoinit">
+      <div class="modal-content">
+        <div class="input-field col s12">
+          <input id="move_group_name" class="validate" type="text" name="group" data-rule-nospaces="true"
+                 data-rule-lowercase="true">
+          <label for="move_group_name">Group Name</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a class="modal-close waves-effect waves-green btn-flat" data-action="stop-logs">Move</a>
+      </div>
+    </div>
     <!-- Add New Node / Launch Wizard Button -->
     <div class="fixed-action-btn">
       <a class="btn-floating btn-large waves-effect waves-light green js-wizard" id="js-wizard" data-action="wizard">
@@ -395,8 +384,13 @@
 
                 <div class="input-field col s12">
                   <input id="node_name" class="validate" type="text" name="name" data-rule-nospaces="true"
-                    data-rule-lowercase="true" required>
+                         data-rule-lowercase="true" required>
                   <label for="node_name">Node Name</label>
+                </div>
+                <div class="input-field col s12">
+                  <input id="node_group_name" class="validate" type="text" name="group" data-rule-nospaces="true"
+                         data-rule-lowercase="true">
+                  <label for="node_group_name">Group Name</label>
                 </div>
 
                 <div class="step-actions">

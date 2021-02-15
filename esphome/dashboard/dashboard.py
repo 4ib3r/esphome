@@ -341,7 +341,12 @@ class WizardRequestHandler(BaseHandler):
             k: ''.join(x.decode() for x in v)
             for k, v in self.request.arguments.items()
         }
-        destination = settings.rel_path(kwargs['name'] + '.yaml')
+
+        file_name = kwargs['name'] + '.yaml'
+        if kwargs['group']:
+            file_name = kwargs['group'] + os.path.sep + file_name
+
+        destination = settings.rel_path(file_name)
         wizard.wizard_write(path=destination, **kwargs)
         self.redirect('./?begin=True')
 
