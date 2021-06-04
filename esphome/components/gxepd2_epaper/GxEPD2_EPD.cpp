@@ -33,24 +33,23 @@ GxEPD2_EPD::GxEPD2_EPD(int8_t cs, int8_t dc, int8_t rst, int8_t busy, int8_t bus
   _using_partial_mode = false;
   _hibernating = false;
   _reset_duration = 20;
+  _reverse = (p == GxEPD2::GDE0213B1); // only GDE0213B1 is reversed
 }
 
 // esphome
-void HOT GxEPD2_EPD::display() {
-  bool partial_update_mode = false;
-  if (this->full_update_every_ >= 2) {
-    bool prev_full_update = this->at_update_ == 1;
-    bool full_update = this->at_update_ == 0;
-    if (full_update != prev_full_update)
-      partial_update_mode = true;
-  }
-  this->writeImage(this->buffer_,0,0,this->WIDTH,this->HEIGHT);
-  this->refresh(partial_update_mode);
+void HOT GxEPD2_EPD::display(bool partial_update_mode) {
+  ESP_LOGD(TAG, "Refreshing display");
+  this->writeImage(this->buffer_,0,0,this->WIDTH,this->HEIGHT, false, this->_reverse);
+  ESP_LOGD(TAG, "writeImage");
   if (this->hasFastPartialUpdate) {
-    this->writeImageAgain(this->buffer_,0,0,this->WIDTH,this->HEIGHT);
-    this->refresh(partial_update_mode);
+    this->writeImageAgain(this->buffer_,0,0,this->WIDTH,this->HEIGHT, false, this->_reverse);
+    ESP_LOGD(TAG, "writeImageAgain");
   }
-  this->powerOff();
+  this->refresh(partial_update_mode);
+  ESP_LOGD(TAG, "refresh");
+  this->hibernate();
+  ESP_LOGD(TAG, "hibernate");
+  ESP_LOGD(TAG, "Done refreshing display");
 }
 
 void GxEPD2_EPD::initialize() {
@@ -58,6 +57,9 @@ void GxEPD2_EPD::initialize() {
 }
 
 void GxEPD2_EPD::deep_sleep() {
+  if (!this->manual_display_) {
+    this->display(false);
+  }
   this->hibernate();
 }
 
@@ -141,8 +143,25 @@ void GxEPD2_EPD::dump_config() {
 }
 
 void GxEPD2_EPD::update() {
+  bool partial_update_mode = false;
   this->do_update_();
-  this->display();
+  if (!this->manual_display_) {
+    if (this->full_update_every_ >= 2) {
+      partial_update_mode = (this->at_update_ != 0);
+      this->at_update_ = (this->at_update_ + 1) % this->full_update_every_;
+    }
+    ESP_LOGD(TAG, "%s update (full update every %d, at update %d)",
+      partial_update_mode ? "Partial" : "Full",
+      this->full_update_every_, this->at_update_);
+    this->display(partial_update_mode);
+    this->hibernate();
+  } else {
+    ESP_LOGD(TAG, "Manual update");
+  }
+}
+
+void GxEPD2_EPD::next_update_full(bool full) {
+  this->at_update_ = (full ? 0 : 1);
 }
 
 void GxEPD2_EPD::fill(Color color) {
@@ -171,6 +190,10 @@ void GxEPD2_EPD::on_safe_shutdown() {
 
 void GxEPD2_EPD::set_full_update_every(uint32_t full_update_every) {
   this->full_update_every_ = full_update_every;
+}
+
+void GxEPD2_EPD::set_manual_display(bool setting) {
+  this->manual_display_ = setting;
 }
 
 void HOT GxEPD2_EPD::draw_absolute_pixel_internal(int x, int y, Color color) {

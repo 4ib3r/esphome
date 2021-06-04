@@ -36,7 +36,6 @@ class GxEPD2_EPD : public PollingComponent,
     void set_reset_pin(GPIOPin *reset) { this->reset_pin_ = reset; }
     void set_busy_pin(GPIOPin *busy) { this->busy_pin_ = busy; }
 
-    void display();
     void initialize();
     void deep_sleep();
 
@@ -45,10 +44,12 @@ class GxEPD2_EPD : public PollingComponent,
     void fill(Color color) override;
     void setup() override;
 
+    void display(bool partial_update_mode);
+
     void on_safe_shutdown() override;
     void set_full_update_every(uint32_t full_update_every);
+    void set_manual_display(bool setting);
     // esphome end
-    
     // attributes
     const uint16_t WIDTH;
     const uint16_t HEIGHT;
@@ -119,6 +120,7 @@ class GxEPD2_EPD : public PollingComponent,
     int get_height_internal() override;
     uint32_t get_buffer_length_();
     const char* model_name();
+    void next_update_full(bool full = true);
     // end esphome
 
     void _reset();
@@ -138,15 +140,16 @@ class GxEPD2_EPD : public PollingComponent,
     GPIOPin *reset_pin_{nullptr};
     GPIOPin *dc_pin_;
     GPIOPin *busy_pin_{nullptr};
-    uint32_t full_update_every_{30};
+    uint32_t full_update_every_{1};
     uint32_t at_update_{0};
+    bool manual_display_{false};
     // end esphome
 
     int8_t _cs, _dc, _rst, _busy, _busy_level;
     uint32_t _busy_timeout;
     bool _diag_enabled, _pulldown_rst_mode;
     bool _initial_write, _initial_refresh;
-    bool _power_is_on, _using_partial_mode, _hibernating;
+    bool _power_is_on, _using_partial_mode, _hibernating, _reverse;
     uint16_t _reset_duration;
 };
 

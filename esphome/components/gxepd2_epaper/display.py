@@ -2,54 +2,23 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import pins
 from esphome.components import display, spi
-from esphome.const import CONF_BUSY_PIN, CONF_DC_PIN, CONF_FULL_UPDATE_EVERY, \
+from esphome.const import CONF_BUSY_PIN, CONF_DC_PIN, CONF_FULL_UPDATE_EVERY, CONF_MANUAL_DISPLAY, \
     CONF_ID, CONF_LAMBDA, CONF_MODEL, CONF_PAGES, CONF_RESET_PIN
 
 DEPENDENCIES = ['spi']
+
+CODEOWNERS = ['@matikij']
 
 gxepd2_epaper_ns = cg.esphome_ns.namespace('gxepd2_epaper')
 GxEPD2_EPD = gxepd2_epaper_ns.class_('GxEPD2_EPD', cg.PollingComponent, spi.SPIDevice,
                                      display.DisplayBuffer)
 
 MODELS = {
-    '154c'      : { 'header': 'GxEPD2_154c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_154c', GxEPD2_EPD)
-                  },
-    '154_z90c'  : { 'header': 'GxEPD2_154_Z90c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_154_Z90c', GxEPD2_EPD)
-                  },
-    '213c'      : { 'header': 'GxEPD2_213c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_213c', GxEPD2_EPD)
-                  },
-    '270c'      : { 'header': 'GxEPD2_270c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_270c', GxEPD2_EPD)
-                  },
-    '290c'      : { 'header': 'GxEPD2_290c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_290c', GxEPD2_EPD)
-                  },
-    '420c'      : { 'header': 'GxEPD2_420c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_420c', GxEPD2_EPD)
-                  },
-    '565c'      : { 'header': 'GxEPD2_565c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_565c', GxEPD2_EPD)
-                  },
-    '583c'      : { 'header': 'GxEPD2_583c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_583c', GxEPD2_EPD)
-                  },
-    '750c'      : { 'header': 'GxEPD2_750c.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_750c', GxEPD2_EPD)
-                  },
-    '750c_z08'  : { 'header': 'GxEPD2_750c_Z08.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_750c_Z08', GxEPD2_EPD)
-                  },
-    '750c_z90'  : { 'header': 'GxEPD2_750c_Z90.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_750c_Z90', GxEPD2_EPD)
+    '154'       : { 'header': 'GxEPD2_154.h',
+                    'class': gxepd2_epaper_ns.class_('GxEPD2_154', GxEPD2_EPD)
                   },
     '154_d67'   : { 'header': 'GxEPD2_154_D67.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_154_D67', GxEPD2_EPD)
-                  },
-    '154'       : { 'header': 'GxEPD2_154.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_154', GxEPD2_EPD)
                   },
     '154_m09'   : { 'header': 'GxEPD2_154_M09.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_154_M09', GxEPD2_EPD)
@@ -66,6 +35,9 @@ MODELS = {
     '213_b73'   : { 'header': 'GxEPD2_213_B73.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_213_B73', GxEPD2_EPD)
                   },
+    '213_m21'   : { 'header': 'GxEPD2_213_M21.h',
+                    'class': gxepd2_epaper_ns.class_('GxEPD2_213_M21', GxEPD2_EPD)
+                  },
     '213_flex'  : { 'header': 'GxEPD2_213_flex.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_213_flex', GxEPD2_EPD)
                   },
@@ -81,14 +53,23 @@ MODELS = {
     '290'       : { 'header': 'GxEPD2_290.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_290', GxEPD2_EPD)
                   },
+    '290_m06'    : { 'header': 'GxEPD2_290_M06.h',
+                    'class': gxepd2_epaper_ns.class_('GxEPD2_290_M06', GxEPD2_EPD)
+                  },
     '290_t5'    : { 'header': 'GxEPD2_290_T5.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_290_T5', GxEPD2_EPD)
+                  },
+    '290_t94'    : { 'header': 'GxEPD2_290_T94.h',
+                    'class': gxepd2_epaper_ns.class_('GxEPD2_290_T94', GxEPD2_EPD)
                   },
     '371'       : { 'header': 'GxEPD2_371.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_371', GxEPD2_EPD)
                   },
     '420'       : { 'header': 'GxEPD2_420.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_420', GxEPD2_EPD)
+                  },
+    '420_m01'   : { 'header': 'GxEPD2_420_M01.h',
+                    'class': gxepd2_epaper_ns.class_('GxEPD2_420_M01', GxEPD2_EPD)
                   },
     '583'       : { 'header': 'GxEPD2_583.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_583', GxEPD2_EPD)
@@ -101,9 +82,6 @@ MODELS = {
                   },
     '750_t7'    : { 'header': 'GxEPD2_750_T7.h',
                     'class': gxepd2_epaper_ns.class_('GxEPD2_750_T7', GxEPD2_EPD)
-                  },
-    'it60'      : { 'header': 'GxEPD2_it60.h',
-                    'class': gxepd2_epaper_ns.class_('GxEPD2_it60', GxEPD2_EPD)
                   }
 }
 
@@ -114,7 +92,8 @@ CONFIG_SCHEMA = cv.All(display.FULL_DISPLAY_SCHEMA.extend({
     cv.Optional(CONF_RESET_PIN): pins.gpio_output_pin_schema,
     cv.Optional(CONF_BUSY_PIN): pins.gpio_input_pin_schema,
     cv.Optional(CONF_FULL_UPDATE_EVERY): cv.uint32_t,
-}).extend(cv.polling_component_schema('1s')).extend(spi.spi_device_schema()),
+    cv.Optional(CONF_MANUAL_DISPLAY): cv.boolean,
+}).extend(cv.polling_component_schema('10s')).extend(spi.spi_device_schema()),
                        cv.has_at_most_one_key(CONF_PAGES, CONF_LAMBDA))
 
 def to_code(config):
@@ -142,5 +121,7 @@ def to_code(config):
         cg.add(var.set_busy_pin(reset))
     if CONF_FULL_UPDATE_EVERY in config:
         cg.add(var.set_full_update_every(config[CONF_FULL_UPDATE_EVERY]))
+    if CONF_MANUAL_DISPLAY in config:
+        cg.add(var.set_manual_display(config[CONF_MANUAL_DISPLAY]))
     yield var
 

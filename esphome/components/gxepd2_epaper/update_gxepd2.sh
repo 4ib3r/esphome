@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=1.2.13
+VERSION=1.2.16
 
 ##
 set -euo pipefail
@@ -23,7 +23,7 @@ cleanup(){
 trap cleanup EXIT
 
 for f in $(cat ${copied_files_list}); do
-  rm ${f};
+  rm ${f} || true;
 done
 > ${copied_files_list}
 
@@ -33,8 +33,8 @@ cd ${tmpdir}
 tar -xhvf ${wd}/${name}.tar.gz
 cd ${name}/src
 
-for f in GxEPD2.h epd/*.{cpp,h} epd3c/*.{cpp,h}; do
-  [[ $f == epd/GxEPD2_1248.* ]] && continue
+for f in GxEPD2.h epd/*.{cpp,h}; do
+  [[ $f == epd/GxEPD2_1248.* ]] && continue # this uses SPI internally
   sed -i 's@#include "../GxEPD2_EPD.h@#include "GxEPD2_EPD.h@' ${f}
   if [[ $f != "GxEPD2.h" ]]; then
     sed -i '/^#include "GxEPD2.*/anamespace esphome {\nnamespace gxepd2_epaper {\n' ${f}
