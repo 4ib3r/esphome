@@ -9,6 +9,7 @@ import json
 import logging
 import multiprocessing
 import os
+import secrets
 import shutil
 import subprocess
 import threading
@@ -45,6 +46,8 @@ from esphome.zeroconf import DashboardStatus, Zeroconf
 
 _LOGGER = logging.getLogger(__name__)
 
+ENV_DEV = "ESPHOME_DASHBOARD_DEV"
+
 
 class DashboardSettings:
     def __init__(self):
@@ -63,7 +66,7 @@ class DashboardSettings:
             self.using_password = bool(password)
         if self.using_password:
             self.password_hash = password_hash(password)
-        self.config_dir = args.configuration[0]
+        self.config_dir = args.configuration
 
     @property
     def relative_url(self):
@@ -112,6 +115,7 @@ def template_args():
         docs_link = "https://next.esphome.io/"
     else:
         docs_link = "https://www.esphome.io/"
+
     return {
         "version": version,
         "docs_link": docs_link,
@@ -275,9 +279,9 @@ class EsphomeLogsHandler(EsphomeCommandWebSocket):
         return [
             "esphome",
             "--dashboard",
-            config_file,
             "logs",
-            "--serial-port",
+            config_file,
+            "--device",
             json_message["port"],
         ]
 
@@ -288,9 +292,9 @@ class EsphomeUploadHandler(EsphomeCommandWebSocket):
         return [
             "esphome",
             "--dashboard",
-            config_file,
             "run",
-            "--upload-port",
+            config_file,
+            "--device",
             json_message["port"],
         ]
 
@@ -298,40 +302,40 @@ class EsphomeUploadHandler(EsphomeCommandWebSocket):
 class EsphomeCompileHandler(EsphomeCommandWebSocket):
     def build_command(self, json_message):
         config_file = settings.rel_path(json_message["configuration"])
-        return ["esphome", "--dashboard", config_file, "compile"]
+        return ["esphome", "--dashboard", "compile", config_file]
 
 
 class EsphomeValidateHandler(EsphomeCommandWebSocket):
     def build_command(self, json_message):
         config_file = settings.rel_path(json_message["configuration"])
-        return ["esphome", "--dashboard", config_file, "config"]
+        return ["esphome", "--dashboard", "config", config_file]
 
 
 class EsphomeCleanMqttHandler(EsphomeCommandWebSocket):
     def build_command(self, json_message):
         config_file = settings.rel_path(json_message["configuration"])
-        return ["esphome", "--dashboard", config_file, "clean-mqtt"]
+        return ["esphome", "--dashboard", "clean-mqtt", config_file]
 
 
 class EsphomeCleanHandler(EsphomeCommandWebSocket):
     def build_command(self, json_message):
         config_file = settings.rel_path(json_message["configuration"])
-        return ["esphome", "--dashboard", config_file, "clean"]
+        return ["esphome", "--dashboard", "clean", config_file]
 
 
 class EsphomeVscodeHandler(EsphomeCommandWebSocket):
     def build_command(self, json_message):
-        return ["esphome", "--dashboard", "-q", "dummy", "vscode"]
+        return ["esphome", "--dashboard", "-q", "vscode", "dummy"]
 
 
 class EsphomeAceEditorHandler(EsphomeCommandWebSocket):
     def build_command(self, json_message):
-        return ["esphome", "--dashboard", "-q", settings.config_dir, "vscode", "--ace"]
+        return ["esphome", "--dashboard", "-q", "vscode", settings.config_dir, "--ace"]
 
 
 class EsphomeUpdateAllHandler(EsphomeCommandWebSocket):
     def build_command(self, json_message):
-        return ["esphome", "--dashboard", settings.config_dir, "update-all"]
+        return ["esphome", "--dashboard", "update-all", settings.config_dir]
 
 
 class SerialPortRequestHandler(BaseHandler):
@@ -350,6 +354,7 @@ class SerialPortRequestHandler(BaseHandler):
             data.append({"port": port.path, "desc": desc})
         data.append({"port": "OTA", "desc": "Over-The-Air"})
         data.sort(key=lambda x: x["port"], reverse=True)
+        self.set_header("content-type", "application/json")
         self.write(json.dumps(data))
 
 
@@ -359,16 +364,18 @@ class WizardRequestHandler(BaseHandler):
         from esphome import wizard
 
         kwargs = {
-            k: "".join(x.decode() for x in v) for k, v in self.request.arguments.items()
+            k: "".join(x.decode() for x in v)
+            for k, v in self.request.arguments.items()
+            if k in ("name", "platform", "board", "ssid", "psk", "password")
         }
-
+        kwargs["ota_password"] = secrets.token_hex(16)
         file_name = kwargs["name"] + ".yaml"
         if kwargs["group"]:
             file_name = kwargs["group"] + os.path.sep + file_name
-
-        destination = settings.rel_path(file_name)
+        destination = settings.rel_path(file_name + ".yaml")
         wizard.wizard_write(path=destination, **kwargs)
-        self.redirect("./?begin=True")
+        self.set_status(200)
+        self.finish()
 
 
 class DownloadBinaryRequestHandler(BaseHandler):
@@ -484,12 +491,11 @@ class MainRequestHandler(BaseHandler):
     def get(self):
         begin = bool(self.get_argument("begin", False))
         entries = _list_dashboard_entries()
-
         groups = groupby(entries, lambda x: x.group)
         self.render(
-            "templates/index.html", 
-            entries=groups, 
-            begin=begin, 
+            get_template_path("index"),
+            entries=groups,
+            begin=begin,
             itemsCnt=len(entries),
             **template_args(),
             login_enabled=settings.using_auth,
@@ -575,11 +581,27 @@ class PingRequestHandler(BaseHandler):
     @authenticated
     def get(self):
         PING_REQUEST.set()
+        self.set_header("content-type", "application/json")
         self.write(json.dumps(PING_RESULT))
 
 
 def is_allowed(configuration):
     return not configuration.startswith(os.path.sep) and ".." not in configuration
+
+
+class InfoRequestHandler(BaseHandler):
+    @authenticated
+    @bind_config
+    def get(self, configuration=None):
+        yaml_path = settings.rel_path(configuration)
+        all_yaml_files = settings.list_yaml_files()
+
+        if yaml_path not in all_yaml_files:
+            self.set_status(404)
+            return
+
+        self.set_header("content-type", "application/json")
+        self.write(DashboardEntry(yaml_path).storage.to_json())
 
 
 class EditRequestHandler(BaseHandler):
@@ -649,7 +671,7 @@ class LoginHandler(BaseHandler):
 
     def render_login_page(self, error=None):
         self.render(
-            "templates/login.html",
+            get_template_path("login"),
             error=error,
             hassio=settings.using_hassio_auth,
             has_username=bool(settings.username),
@@ -707,22 +729,48 @@ class LogoutHandler(BaseHandler):
         self.redirect("./login")
 
 
-_STATIC_FILE_HASHES = {}
+def get_base_frontend_path():
+    if ENV_DEV not in os.environ:
+        import esphome_dashboard
+
+        return esphome_dashboard.where()
+
+    static_path = os.environ[ENV_DEV]
+    if not static_path.endswith("/"):
+        static_path += "/"
+
+    # This path can be relative, so resolve against the root or else templates don't work
+    return os.path.abspath(os.path.join(os.getcwd(), static_path, "esphome_dashboard"))
 
 
+def get_template_path(template_name):
+    return os.path.join(get_base_frontend_path(), f"{template_name}.template.html")
+
+
+def get_static_path(*args):
+    return os.path.join(get_base_frontend_path(), "static", *args)
+
+
+@functools.lru_cache(maxsize=None)
 def get_static_file_url(name):
-    static_path = os.path.join(os.path.dirname(__file__), "static")
-    if name in _STATIC_FILE_HASHES:
-        hash_ = _STATIC_FILE_HASHES[name]
-    else:
-        path = os.path.join(static_path, name)
-        with open(path, "rb") as f_handle:
-            hash_ = hashlib.md5(f_handle.read()).hexdigest()[:8]
-        _STATIC_FILE_HASHES[name] = hash_
-    return f"./static/{name}?hash={hash_}"
+    base = f"./static/{name}"
+
+    if ENV_DEV in os.environ:
+        return base
+
+    # Module imports can't deduplicate if stuff added to url
+    if name == "js/esphome/index.js":
+        import esphome_dashboard
+
+        return base.replace("index.js", esphome_dashboard.entrypoint())
+
+    path = get_static_path(name)
+    with open(path, "rb") as f_handle:
+        hash_ = hashlib.md5(f_handle.read()).hexdigest()[:8]
+    return f"{base}?hash={hash_}"
 
 
-def make_app(debug=False):
+def make_app(debug=get_bool_env(ENV_DEV)):
     def log_function(handler):
         if handler.get_status() < 400:
             log_method = access_log.info
@@ -752,7 +800,6 @@ def make_app(debug=False):
                     "Cache-Control", "no-store, no-cache, must-revalidate, max-age=0"
                 )
 
-    static_path = os.path.join(os.path.dirname(__file__), "static")
     app_settings = {
         "debug": debug,
         "cookie_secret": settings.cookie_secret,
@@ -774,6 +821,7 @@ def make_app(debug=False):
             (rel + "vscode", EsphomeVscodeHandler),
             (rel + "ace", EsphomeAceEditorHandler),
             (rel + "update-all", EsphomeUpdateAllHandler),
+            (rel + "info", InfoRequestHandler),
             (rel + "edit", EditRequestHandler),
             (rel + "download.bin", DownloadBinaryRequestHandler),
             (rel + "serial-ports", SerialPortRequestHandler),
@@ -781,13 +829,10 @@ def make_app(debug=False):
             (rel + "delete", DeleteRequestHandler),
             (rel + "undo-delete", UndoDeleteRequestHandler),
             (rel + "wizard.html", WizardRequestHandler),
-            (rel + r"static/(.*)", StaticFileHandler, {"path": static_path}),
+            (rel + r"static/(.*)", StaticFileHandler, {"path": get_static_path()}),
         ],
         **app_settings,
     )
-
-    if debug:
-        _STATIC_FILE_HASHES.clear()
 
     return app
 
