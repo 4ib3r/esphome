@@ -13,7 +13,6 @@ import secrets
 import shutil
 import subprocess
 import threading
-from itertools import groupby
 
 import tornado
 import tornado.concurrent
@@ -369,10 +368,7 @@ class WizardRequestHandler(BaseHandler):
             if k in ("name", "platform", "board", "ssid", "psk", "password")
         }
         kwargs["ota_password"] = secrets.token_hex(16)
-        file_name = kwargs["name"] + ".yaml"
-        if kwargs["group"]:
-            file_name = kwargs["group"] + os.path.sep + file_name
-        destination = settings.rel_path(file_name + ".yaml")
+        destination = settings.rel_path(kwargs["name"] + ".yaml")
         wizard.wizard_write(path=destination, **kwargs)
         self.set_status(200)
         self.finish()
@@ -404,19 +400,18 @@ class DownloadBinaryRequestHandler(BaseHandler):
 
 def _list_dashboard_entries():
     files = settings.list_yaml_files()
-    return sorted([DashboardEntry(file) for file in files], key=lambda x: x.group)
+    return [DashboardEntry(file) for file in files]
 
 
 class DashboardEntry:
     def __init__(self, path):
         self.path = path
-        self._filename = self.path[len(settings.config_dir)+1:]
         self._storage = None
         self._loaded_storage = False
 
     @property
     def filename(self):
-        return self._filename
+        return os.path.basename(self.path)
 
     @property
     def storage(self):  # type: () -> Optional[StorageJSON]
@@ -436,14 +431,8 @@ class DashboardEntry:
     @property
     def name(self):
         if self.storage is None:
-            return os.path.basename(self.filename)[: -len(".yaml")]
+            return self.filename[: -len(".yaml")]
         return self.storage.name
-
-    @property
-    def group(self):
-        if "/" not in self.filename:
-            return "Default"
-        return os.path.dirname(self.filename)
 
     @property
     def comment(self):
@@ -491,12 +480,11 @@ class MainRequestHandler(BaseHandler):
     def get(self):
         begin = bool(self.get_argument("begin", False))
         entries = _list_dashboard_entries()
-        groups = groupby(entries, lambda x: x.group)
+
         self.render(
             get_template_path("index"),
-            entries=groups,
+            entries=entries,
             begin=begin,
-            itemsCnt=len(entries),
             **template_args(),
             login_enabled=settings.using_auth,
         )
@@ -586,7 +574,7 @@ class PingRequestHandler(BaseHandler):
 
 
 def is_allowed(configuration):
-    return not configuration.startswith(os.path.sep) and ".." not in configuration
+    return os.path.sep not in configuration
 
 
 class InfoRequestHandler(BaseHandler):
@@ -608,7 +596,6 @@ class EditRequestHandler(BaseHandler):
     @authenticated
     @bind_config
     def get(self, configuration=None):
-        print(configuration)
         filename = settings.rel_path(configuration)
         content = ""
         if os.path.isfile(filename):
